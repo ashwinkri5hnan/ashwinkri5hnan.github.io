@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Repositories</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+    />
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <style>
+      body {
+        background-color: #2c3e50;
+        color: #ecf0f1;
+        padding-top: 50px;
+      }
+
+      .container {
+        max-width: 800px;
+        background-color: #34495e;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        margin: 0 auto;
+      }
+
+      .loader {
+        border: 5px solid #3498db;
+        border-top: 5px solid #e74c3c;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+
+      .user-card {
+        display: none;
+        margin-bottom: 20px;
+        padding: 15px;
+        border: 2px solid #3498db;
+        border-radius: 8px;
+        background-color: #2c3e50;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .user-avatar {
+        max-width: 100px;
+        border-radius: 50%;
+        margin-right: 15px;
+      }
+
+      .repo-card {
+        margin-bottom: 20px;
+        padding: 15px;
+        border: 2px solid #3498db;
+        border-radius: 8px;
+        background-color: #2c3e50;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .topics-box {
+        display: inline-block;
+        margin: 5px;
+        padding: 8px;
+        background-color: #3498db;
+        color: #fff;
+        border-radius: 5px;
+      }
+
+      .repo-url {
+        margin-top: 10px;
+      }
+
+      .pagination-box {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #34495e;
+        border: 2px solid #3498db;
+        border-radius: 5px;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      h1 {
+        color: #3498db;
+      }
+
+      label {
+        color: #3498db;
+        font-weight: bold;
+      }
+
+      .form-control {
+        border: 2px solid #3498db;
+        color: #3498db;
+      }
+
+      .btn-primary {
+        background-color: #3498db;
+        border: 2px solid #3498db;
+        transition: background-color 0.3s;
+      }
+
+      .btn-primary:hover {
+        background-color: #2184c3;
+        border: 2px solid #2184c3;
+      }
+
+      .btn-secondary {
+        background-color: #e74c3c;
+        border: 2px solid #e74c3c;
+        transition: background-color 0.3s;
+      }
+
+      .btn-secondary:hover {
+        background-color: #c0392b;
+        border: 2px solid #c0392b;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1 class="text-center">GitHub Repositories</h1>
+
+      <div id="user-info" class="user-card"></div>
+
+      <div class="form-group">
+        <label for="username">Enter GitHub Username:</label>
+        <input
+          type="text"
+          class="form-control"
+          id="username"
+          placeholder="e.g., ashwinkri5hnan"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="perPage">Repositories per page:</label>
+        <select class="form-control" id="perPage">
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+
+      <button
+        class="btn btn-primary"
+        onclick="resetPageNumber(); getRepositories()"
+      >
+        Get Repositories
+      </button>
+
+      <div class="form-group mt-3">
+        <label for="search">Search Repositories:</label>
+        <input
+          type="text"
+          class="form-control"
+          id="search"
+          placeholder="Search..."
+        />
+      </div>
+
+      <div id="loader" class="text-center"></div>
+
+      <div id="repositories"></div>
+
+      <div id="pagination" class="pagination-box">
+        <button class="btn btn-secondary" onclick="prevPage()">Previous</button>
+        <span id="currentPage">1</span>
+        <button class="btn btn-secondary" onclick="nextPage()">Next</button>
+      </div>
+    </div>
+
+    <script>
+      var currentPage = 1;
+
+      async function getRepositories() {
+        var username = $("#username").val();
+        var perPage = $("#perPage").val();
+
+        $("#repositories").empty();
+        $("#user-info").empty();
+        $("#loader").html('<div class="loader"></div>');
+
+        try {
+          const { repositories, userBio } = await fetchRepositories(
+            username,
+            perPage,
+            currentPage
+          );
+
+          $("#loader").empty();
+          displayUserInformation(userBio);
+
+          if (repositories.length === 0) {
+            $("#repositories").html("<p>No repositories found.</p>");
+            return;
+          }
+
+          displayRepositories(repositories);
+        } catch (error) {
+          console.error("Error fetching repositories:", error);
+          $("#loader").empty();
+
+          if (error.message === "Not Found") {
+            $("#repositories").html(
+              "<p>No user found with the associated username.</p>"
+            );
+          } else {
+            $("#repositories").html(
+              "<p>Error fetching repositories. Please check your input and try again.</p>"
+            );
+          }
+        }
+      }
+
+      async function fetchRepositories(username, perPage, page) {
+        const userResponse = await fetch(
+          `https://api.github.com/users/${username}`
+        );
+        const userBio = await userResponse.json();
+
+        const reposResponse = await fetch(
+          `https://api.github.com/users/${username}/repos?per_page=${perPage}&page=${page}`
+        );
+        const repositories = await reposResponse.json();
+
+        return { repositories, userBio };
+      }
+
+      function displayUserInformation(userBio) {
+        var userInfoDiv = $("#user-info");
+        userInfoDiv.empty();
+
+        if (
+          userBio.name ||
+          userBio.bio ||
+          userBio.location ||
+          userBio.avatar_url ||
+          userBio.html_url
+        ) {
+          userInfoDiv.show(); // Display user card only if there is content
+
+          if (userBio.name) {
+            userInfoDiv.append(`<h3>${userBio.name}</h3>`);
+          }
+
+          if (userBio.bio) {
+            userInfoDiv.append(`<p>${userBio.bio}</p>`);
+          }
+
+          if (userBio.location) {
+            userInfoDiv.append(
+              `<p><strong>Location:</strong> ${userBio.location}</p>`
+            );
+          }
+
+          if (userBio.avatar_url) {
+            userInfoDiv.append(
+              `<img src="${userBio.avatar_url}" alt="User Avatar" class="user-avatar" />`
+            );
+          }
+
+          if (userBio.html_url) {
+            userInfoDiv.append(
+              `<p class="repo-url"><strong>GitHub Profile:</strong> <a href="${userBio.html_url}" target="_blank">${userBio.html_url}</a></p>`
+            );
+          }
+        } else {
+          userInfoDiv.hide(); // Hide user card if there is no content
+        }
+      }
+
+      function displayRepositories(repositories) {
+        var repositoriesDiv = $("#repositories");
+        repositoriesDiv.empty();
+
+        repositories.forEach(function (repo) {
+          var topics = repo.topics ? repo.topics : ["No topics"];
+          var repoCard = `<div class="repo-card">
+                                <h3>${repo.name}</h3>`;
+
+          topics.forEach(function (topic) {
+            repoCard += `<div class="topics-box">${topic}</div>`;
+          });
+
+          repoCard += `<p class="repo-url"><strong>URL:</strong> <a href="${repo.html_url}" target="_blank">${repo.html_url}</a></p>
+                        </div>`;
+
+          repositoriesDiv.append(repoCard);
+        });
+      }
+
+      function nextPage() {
+        currentPage++;
+        getRepositories();
+        updatePageNumber();
+      }
+
+      function resetPageNumber() {
+        currentPage = 1;
+        updatePageNumber();
+      }
+
+      function prevPage() {
+        if (currentPage > 1) {
+          currentPage--;
+          getRepositories();
+          updatePageNumber();
+        }
+      }
+
+      function updatePageNumber() {
+        $("#currentPage").text(currentPage);
+      }
+
+      // Search functionality
+      $("#search").on("input", function () {
+        var searchTerm = $(this).val().toLowerCase();
+
+        $("#repositories .repo-card").each(function () {
+          var repoName = $(this).find("h3").text().toLowerCase();
+          var topics = $(this).find(".topics-box").text().toLowerCase();
+
+          if (repoName.includes(searchTerm) || topics.includes(searchTerm)) {
+            $(this).show();
+          } else {
+            $(this).hide();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
